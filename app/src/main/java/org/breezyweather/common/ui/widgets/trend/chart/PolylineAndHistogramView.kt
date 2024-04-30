@@ -48,6 +48,8 @@ class PolylineAndHistogramView @JvmOverloads constructor(
     private val mPath = Path()
     private val mShaderWrapper: DayNightShaderWrapper
 
+    // 三个值，分别是：前一个、当前、后一个值，用于计算前后高度，生成相互无缝连接的曲线
+    // （计算过程见 computeCoordinates ）
     @Size(3)
     private var mHighPolylineValues: Array<Float?>? = arrayOfNulls(3)
 
@@ -99,15 +101,22 @@ class PolylineAndHistogramView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         ensureShader(mShaderWrapper.isLightTheme)
+        // 计算前后加自己三个点的y轴坐标，然后用于后面绘制无缝连接的曲线
+        // 其中第一个点是当前真实值和前一个真实值的平均值，
+        // 第二个点是当前真实值，第三个点是当前真实值和后一个真实值的平均值
         computeCoordinates()
+        // 绘制中间竖直细线
         drawTimeLine(canvas)
+        // 绘制中间的柱状图和降水概率（百分比）
         if (mHistogramValue != null && (mHistogramValue != 0f || mHighestPolylineValue == null && mLowestPolylineValue == null) && mHistogramValueStr != null && mHighestHistogramValue != null && mLowestHistogramValue != null) {
             drawHistogram(canvas)
         }
         if (mHighestPolylineValue != null && mLowestPolylineValue != null) {
+            // 最高折线
             if (mHighPolylineValues != null && mHighPolylineValueStr != null) {
                 drawHighPolyLine(canvas)
             }
+            // 最低折线
             if (mLowPolylineValues != null && mLowPolylineValueStr != null) {
                 drawLowPolyline(canvas)
             }
@@ -120,6 +129,7 @@ class PolylineAndHistogramView @JvmOverloads constructor(
             strokeWidth = mChartLineWith.toFloat()
             color = mLineColors[2]
         }
+        // 绘制中间的竖直细线
         canvas.drawLine(
             measuredWidth / 2f, marginTop.toFloat(),
             measuredWidth / 2f, (measuredHeight - marginBottom).toFloat(),
@@ -130,6 +140,7 @@ class PolylineAndHistogramView @JvmOverloads constructor(
     private fun drawHighPolyLine(canvas: Canvas) {
         assert(mHighPolylineValues != null)
         assert(mHighPolylineValueStr != null)
+        // 这里判断前后是否带有有值，如果有值，则进行折线处理
         if (mHighPolylineValues!![0] != null && mHighPolylineValues!![2] != null) {
             // shadow.
             mPaint.apply {
@@ -163,11 +174,14 @@ class PolylineAndHistogramView @JvmOverloads constructor(
             }
             mPath.apply {
                 reset()
+                // 移动到最左侧（左侧的值是当前真实值和前一个真实值的平均值）
                 moveTo(getRTLCompactX(0f), mHighPolylineY[0].toFloat())
+                // 中间值（当前值）
                 lineTo(
                     getRTLCompactX((measuredWidth / 2.0).toFloat()),
                     mHighPolylineY[1].toFloat()
                 )
+                // 最右边
                 lineTo(getRTLCompactX(measuredWidth.toFloat()), mHighPolylineY[2].toFloat())
             }
             canvas.drawPath(mPath, mPaint)
@@ -214,6 +228,7 @@ class PolylineAndHistogramView @JvmOverloads constructor(
             }
             canvas.drawPath(mPath, mPaint)
         } else {
+            // 右边没有值，当前数据是最后一个数据
             // shadow.
             mPaint.apply {
                 color = Color.BLACK
@@ -349,6 +364,7 @@ class PolylineAndHistogramView @JvmOverloads constructor(
             alpha = (255 * mHistogramAlpha).toInt()
             style = Paint.Style.FILL
         }
+        // 柱状图
         canvas.drawRoundRect(
             RectF(
                 (measuredWidth / 2.0 - mHistogramWidth).toFloat(),
@@ -365,6 +381,7 @@ class PolylineAndHistogramView @JvmOverloads constructor(
             textAlign = Paint.Align.CENTER
             textSize = mHistogramTextSize.toFloat()
         }
+        // 预测值
         canvas.drawText(
             mHistogramValueStr ?: "",
             (measuredWidth / 2.0).toFloat(),
@@ -503,6 +520,7 @@ class PolylineAndHistogramView @JvmOverloads constructor(
             - (canvasHeight * (value - min) / (max - min)))).toInt()
     }
 
+    // 计算左侧的值（根据不同的阅读习惯，选择不同的绘制方向）
     private fun getRTLCompactX(x: Float): Float {
         return if (layoutDirection == LAYOUT_DIRECTION_RTL) (measuredWidth - x) else x
     }

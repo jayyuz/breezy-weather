@@ -177,6 +177,9 @@ class DailyTemperatureAdapter(
 
     init {
         val weather = location.weather!!
+        // 这段代码创建了一个数组来存储日间温度，其中偶数索引包含实际的温度值，奇数索引包含相邻温度值的平均值。
+        // 如果相邻的温度值不存在，则奇数索引处的值为null。这种数据结构可能用于在图表或其他视觉表示中插入温度数据，
+        // 其中奇数索引处的平均值可以用于平滑曲线或进行插值。
         mDaytimeTemperatures = arrayOfNulls(max(0, weather.dailyForecast.size * 2 - 1))
         run {
             var i = 0
